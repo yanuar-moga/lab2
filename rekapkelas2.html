@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>Filter Kelas Google Sheet + Download Excel</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">function applyPreset() {
+    const preset = document.getElementById('presetSheet').value;
+    if (preset) {
+        document.getElementById('sheetIdInput').value = preset;
+    }
+}
+
+</script>
 
 <style>
     body { font-family: "Segoe UI", sans-serif; background: #f5f7fa; margin: 0; padding: 0; }
@@ -53,6 +60,13 @@
     <h2>📊 Rekap Nilai Per Kelas (Google Sheet)</h2>
 
     <div style="margin-bottom: 20px;">
+        <label>Pilih Sumber Data:</label><br>
+        <select id="presetSheet" onchange="applyPreset()">
+            <option value="">-- Pilih Preset --</option>
+            <option value="1V4VE4qFv0YCC8wEFKdPMPRvvcyFwcLyIfgE8gdCScyw">Informatika</option>
+            <option value="1gvxBUDSkXQ7iCasCw197CAn3eZWXmFISgtIANlEzA20">IPS</option>
+        </select>
+        <br><br>
         <label>Masukkan ID Google Sheet:</label><br>
         <input type="text" id="sheetIdInput" placeholder="Masukkan ID Google Sheet">
         <button onclick="loadSheet()">Load Data</button>
