@@ -1,273 +1,168 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Monitoring Kondisi Laptop Lab 2 - Realtime</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitoring Laptop Lab 2</title>
 
 <style>
-body {
-    background: #eef2f3;
-    padding: 20px;
-    font-family: Arial, sans-serif;
-}
+    body {
+        font-family: Arial, sans-serif;
+        background: #f1f1f1;
+        margin: 0;
+        padding: 20px;
+        text-align: center;
+    }
 
-h1 {
-    text-align: center;
-    margin-bottom: 10px;
-}
+    h2 { margin-bottom: 20px; }
 
-#labMap {
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 12px;
-    max-width: 600px;
-    margin: 30px auto;
-}
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 12px;
+        max-width: 900px;
+        margin: auto;
+    }
 
-.meja {
-    background: #ccc;
-    border-radius: 10px;
-    padding: 18px 5px;
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-    border: 2px solid #999;
-}
+    .laptop {
+        background: #ffffff;
+        border: 2px solid #ccc;
+        padding: 15px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.2s;
+    }
 
-.meja:hover {
-    transform: scale(1.05);
-}
+    .laptop:hover {
+        transform: scale(1.05);
+    }
 
-/* Status warna */
-.normal { background: #b9f6ca !important; }
-.ringan { background: #fff59d !important; }
-.berat  { background: #ff8a80 !important; }
-.marked { background: #d32f2f !important; color: white; }
-.signed { border: 3px solid #0277bd !important; }
+    .online {
+        background: #2ecc71;
+        color: white;
+        border-color: #27ae60;
+    }
 
-/* Popup */
-#detailBox {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: white;
-    border-radius: 15px 15px 0 0;
-    padding: 20px;
-    box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
-    z-index: 1000;
-}
+    .offline {
+        background: #f1c40f;
+        color: white;
+        border-color: #d4ac0d;
+    }
 
-.btn-mark   { background: #d32f2f; color: white; }
-.btn-reset  { background: #777; color: white; }
+    /* Popup */
+    #popup {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6);
+        justify-content: center;
+        align-items: center;
+    }
+
+    #popupBox {
+        background: white;
+        padding: 20px;
+        width: 300px;
+        border-radius: 10px;
+        text-align: left;
+        animation: pop 0.2s ease-in-out;
+    }
+
+    @keyframes pop {
+        from { transform: scale(0.7); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+
+    button {
+        padding: 10px 15px;
+        margin-top: 10px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .btnOnline { background: #27ae60; color: white; }
+    .btnOffline { background: #d4ac0d; color: white; }
+    .btnClose { background: #e74c3c; color: white; float: right; }
 </style>
 </head>
-
 <body>
 
-<h1>Layout Meja Lab 2</h1>
-<p class="text-center">Klik nomor meja untuk melihat detail perangkat.</p>
+<h2>Layout Meja & Laptop Lab 2</h2>
 
-<div id="labMap"></div>
+<div class="grid" id="labGrid"></div>
 
-<div id="detailBox"></div>
+<!-- POPUP -->
+<div id="popup">
+    <div id="popupBox">
+        <h3 id="popupTitle"></h3>
+        <p>Status saat ini: <b id="popupStatus"></b></p>
 
-<div class="text-center mt-4">
-    <button id="btnLogin" class="btn btn-dark">Login Admin</button>
-    <button id="btnLogout" class="btn btn-secondary" style="display:none;">Logout</button>
+        <button class="btnOnline" onclick="setStatus('online')">Tandai Online</button>
+        <button class="btnOffline" onclick="setStatus('offline')">Tandai Offline</button>
+
+        <button class="btnClose" onclick="closePopup()">Tutup</button>
+    </div>
 </div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-
 <script>
-// =====================================================
-// KONFIGURASI FIREBASE — ganti dengan milik Bayu sendiri
-// =====================================================
-const firebaseConfig = {
-    apiKey: "BAYU_API_KEY",
-    authDomain: "BAYU_DOMAIN.firebaseapp.com",
-    databaseURL: "https://BAYU_DOMAIN-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "BAYU_PROJECT_ID",
-    storageBucket: "BAYU_BUCKET.appspot.com",
-    messagingSenderId: "BAYU_SENDER",
-    appId: "BAYU_APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    // Total laptop di Lab 2 (ubah jika perlu)
+    const total_laptop = 20;
 
-// ADMIN
-const ADMIN_PIN = "2580";
-let isAdmin = false;
+    // Key LocalStorage
+    const STORAGE_KEY = "status_lab2";
 
-// DATA LOKAL
-let INV = {};     
-let SIGNED = {};
-let MARKED = {};
-let WIFI = {};
-let MAP_ORDER = Array.from({length:34}, (_,i)=>i+1);
-
-// CHROMEBOOK
-const CHROME_ACCOUNTS = [
-    "siswa1@lab.id","siswa2@lab.id","siswa3@lab.id","siswa4@lab.id",
-    "siswa5@lab.id","siswa6@lab.id","siswa7@lab.id","siswa8@lab.id",
-    "siswa9@lab.id","siswa10@lab.id","siswa11@lab.id"
-];
-const CHROME_PASS = "spensamo123";
-
-// =====================================================
-// LOAD REALTIME FIREBASE
-// =====================================================
-db.ref("lab2/inventaris").on("value", snap=>{
-    INV = snap.val() || {};
-    renderMap();
-});
-db.ref("lab2/signed").on("value", snap=>{
-    SIGNED = snap.val() || {};
-    renderMap();
-});
-db.ref("lab2/marked").on("value", snap=>{
-    MARKED = snap.val() || {};
-    renderMap();
-});
-db.ref("lab2/wifi").on("value", snap=>{
-    WIFI = snap.val() || {};
-});
-
-// =====================================================
-// RENDER MEJA
-// =====================================================
-function renderMap(){
-    const grid = document.getElementById("labMap");
-    grid.innerHTML = "";
-
-    MAP_ORDER.forEach(no=>{
-        const div = document.createElement("div");
-        const item = INV[no];
-
-        let cls = "empty";
-
-        if (MARKED[no]) cls = "marked";
-        else if (SIGNED[no]) cls = "signed";
-        else if (item) {
-            const k = (item.kondisi || "").toLowerCase();
-            if (k.includes("berat")) cls = "berat";
-            else if (k.includes("ringan")) cls = "ringan";
-            else cls = "normal";
+    // Membuat data awal jika belum ada
+    if (!localStorage.getItem(STORAGE_KEY)) {
+        let data = {};
+        for (let i = 1; i <= total_laptop; i++) {
+            data[i] = "offline"; 
         }
-
-        div.className = `meja ${cls}`;
-        div.innerText = no;
-        div.onclick = ()=> openDetail(no);
-
-        grid.appendChild(div);
-    });
-}
-
-// =====================================================
-// POPUP DETAIL
-// =====================================================
-function openDetail(no){
-    const box = document.getElementById("detailBox");
-    const item = INV[no];
-
-    let html = `<h3>Meja ${no}</h3>`;
-
-    if(!item){
-        html += `<p><b>Tidak ada data perangkat.</b></p>`;
-        box.innerHTML = html;
-        box.style.display = "block";
-        return;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
 
-    html += `
-        <p><b>Inventaris:</b> ${item.inventaris}</p>
-        <p><b>Merek / Tipe:</b> ${item.merek}</p>
-        <p><b>OS:</b> ${item.os}</p>
-        <p><b>Kondisi:</b> ${item.kondisi}</p>
-        <p><b>Keterangan:</b> ${item.keterangan}</p>
-        <hr>
-    `;
+    let statusData = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    // WIFI
-    if(WIFI[no]){
-        html += `
-        <p><b>WiFi:</b></p>
-        <div>User: ${WIFI[no].user}</div>
-        <div>Pass: ${WIFI[no].pass}</div>
-        <hr>
-        `;
+    const labGrid = document.getElementById("labGrid");
+    let selectedLaptop = 0;
+
+    // Render tabel laptop
+    function loadGrid() {
+        labGrid.innerHTML = "";
+        for (let i = 1; i <= total_laptop; i++) {
+            let div = document.createElement("div");
+            div.className = "laptop " + statusData[i];
+            div.innerText = "Laptop " + i;
+            div.onclick = () => openPopup(i);
+            labGrid.appendChild(div);
+        }
     }
 
-    // CHROMEBOOK
-    if(String(item.os).toLowerCase().includes("chrome")){
-        const idx = (no - 1) % CHROME_ACCOUNTS.length;
-        html += `
-        <p><b>Akun Chromebook:</b></p>
-        <div>${CHROME_ACCOUNTS[idx]}</div>
-        <div>Password: ${CHROME_PASS}</div>
-        <hr>
-        `;
+    // Buka popup
+    function openPopup(num) {
+        selectedLaptop = num;
+        document.getElementById("popupTitle").innerText = "Laptop " + num;
+        document.getElementById("popupStatus").innerText = statusData[num];
+        document.getElementById("popup").style.display = "flex";
     }
 
-    // BUTTON ACTION
-    html += `<div style="margin-top:10px;">`;
-
-    if(!SIGNED[no]) html += `<button class="btn btn-primary" onclick="signIn(${no})">Sign-in</button> `;
-    else html += `<button class="btn btn-primary" onclick="unsign(${no})">Batalkan Sign</button> `;
-
-    if(!MARKED[no]) html += `<button class="btn btn-mark" onclick="mark(${no})">Tandai Masalah</button>`;
-    else html += `<button class="btn btn-reset" onclick="unmark(${no})">Hapus Tanda</button>`;
-
-    html += `</div>`;
-
-    box.innerHTML = html;
-    box.style.display = "block";
-}
-
-// =====================================================
-// ACTION: SIGN / MARK
-// =====================================================
-function signIn(no){
-    db.ref("lab2/signed/"+no).set(true);
-}
-function unsign(no){
-    db.ref("lab2/signed/"+no).remove();
-}
-function mark(no){
-    db.ref("lab2/marked/"+no).set(true);
-}
-function unmark(no){
-    db.ref("lab2/marked/"+no).remove();
-}
-
-// =====================================================
-// ADMIN LOGIN
-// =====================================================
-document.getElementById("btnLogin").onclick = ()=>{
-    const pin = prompt("Masukkan PIN Admin:");
-    if(pin === ADMIN_PIN){
-        isAdmin = true;
-        document.getElementById("btnLogin").style.display = "none";
-        document.getElementById("btnLogout").style.display = "inline-block";
-        alert("Login berhasil");
-    } else {
-        alert("PIN salah");
+    // Tutup popup
+    function closePopup() {
+        document.getElementById("popup").style.display = "none";
     }
-};
 
-document.getElementById("btnLogout").onclick = ()=>{
-    isAdmin = false;
-    document.getElementById("btnLogin").style.display = "inline-block";
-    document.getElementById("btnLogout").style.display = "none";
-};
+    // Set status online/offline
+    function setStatus(state) {
+        statusData[selectedLaptop] = state;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(statusData));
+        loadGrid();
+        closePopup();
+    }
+
+    // Load awal
+    loadGrid();
 </script>
 
 </body>
